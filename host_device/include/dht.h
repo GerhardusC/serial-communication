@@ -1,6 +1,5 @@
 #include "esp_log.h"
 #include "driver/gpio.h"
-#include "utils.h"
 
 struct Temp_reading {
     uint16_t temp_sig;
