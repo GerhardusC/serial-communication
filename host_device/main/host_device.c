@@ -22,7 +22,7 @@ void wait_us_blocking(uint32_t micros_to_wait) {
 void pulse_clock() {
 	int old_level = gpio_get_level(CLK);
 	gpio_set_level(CLK, !old_level);
-	vTaskDelay(1);
+	wait_us_blocking(20);
 }
 
 int recv_message() {
@@ -30,7 +30,7 @@ int recv_message() {
 
 	// Send select signal to tell other device to start communicating.
 	gpio_set_level(SELECT, 0);
-	wait_us_blocking(80);
+	wait_us_blocking(10);
 	gpio_set_level(CLK, 0);
 
 	// Start pulsing the clock, and read MISO right before each clock pulse.

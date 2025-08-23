@@ -18,7 +18,7 @@ void wait_us_blocking(uint32_t micros_to_wait) {
 
 uint16_t wait_for_clock_state(uint8_t expected_state){
 	// Set as input pin to read from.
-	// clock timeout 100000
+	// clock timeout 10000
 	for(int i = 0; i < 10000; i += 2){
 	// Wait one cycle apparently for jitter.
 		wait_us_blocking(2);
@@ -38,33 +38,35 @@ void send_message(int msg) {
 		int val = (msg & (1 << i)) > 0 ? 1 : 0;
 		// Send bit.
 		gpio_set_level(MISO, val);
-		ESP_LOGI("BIT_SENT", "%d", val);
 
 		// Wait for clock to switch and bit to be read.
 		wait_for_clock_state(1);
-
 	}
+	ESP_LOGI("MSG_SENT", "%d", msg);
 }
 
+void listen_for_message_signal(int msg) {
+	while (gpio_get_level(SELECT) == 1) {
+		wait_us_blocking(2);
+	}
+	send_message(msg);
+	vTaskDelay(1);
+	while(gpio_get_level(SELECT) == 0) {
+		vTaskDelay(1);
+	};
+	
+}
 
 void app_main(void)
 {
-	gpio_set_direction(2, GPIO_MODE_INPUT_OUTPUT);
 	gpio_set_direction(MISO, GPIO_MODE_OUTPUT);
 	gpio_set_direction(SELECT, GPIO_MODE_INPUT);
 	gpio_set_direction(CLK, GPIO_MODE_INPUT);
 
 	int i = 0;
 
-	int message_sent = 0;
 	while (1) {
-		if(gpio_get_level(SELECT) == 0) {
-			send_message(i);
-			i++;
-			vTaskDelay(1);
-			while(gpio_get_level(SELECT) == 0) {
-				vTaskDelay(1);
-			};
-		}
+		listen_for_message_signal(i);
+		i++;
 	}
 }
