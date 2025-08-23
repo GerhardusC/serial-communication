@@ -2,19 +2,15 @@
 #include "driver/gpio.h"
 #include "freertos/idf_additions.h"
 #include "hal/gpio_types.h"
-#include "esp_timer.h"
-#include "esp_task.h"
 #include "esp_log.h"
+
+#include "utils.h"
+#include "dht.h"
 
 #define CLK 19
 #define SELECT 21
 #define MISO 22
 #define OTHER 23
-
-void wait_us_blocking(uint32_t micros_to_wait) {
-    uint64_t micros_now_plus_delay = esp_timer_get_time() + micros_to_wait;
-    while(micros_now_plus_delay > esp_timer_get_time()){}
-}
 
 uint16_t wait_for_clock_state(uint8_t expected_state){
 	// Set as input pin to read from.
@@ -54,19 +50,52 @@ void listen_for_message_signal(int msg) {
 	while(gpio_get_level(SELECT) == 0) {
 		vTaskDelay(1);
 	};
-	
 }
 
-void app_main(void)
-{
+/** 
+ * Converts:
+ * FROM: TT, tt, HH, hh
+ * TO:   TTTTTTTTttttttttHHHHHHHHhhhhhhhh */
+int convert_measurement_to_int(struct Temp_reading *measurement) {
+	int top =	0b11111111 << 24;
+	int top_mid =	0b11111111 << 16;
+	int bot_mid =	0b11111111 << 8;
+	int bot =	0b11111111;
+
+	int temp_sig_mask = top     &	(measurement->temp_sig << 24);
+	int temp_dec_mask = top_mid &	(measurement->temp_dec << 16);
+	int hum_sig_mask  = bot_mid &	(measurement->hum_sig << 8);
+	int hum_dec_mask  = bot     &	(measurement->hum_dec);
+
+	return temp_sig_mask | temp_dec_mask | hum_sig_mask | hum_dec_mask;
+}
+
+void app_main(void) {
 	gpio_set_direction(MISO, GPIO_MODE_OUTPUT);
 	gpio_set_direction(SELECT, GPIO_MODE_INPUT);
 	gpio_set_direction(CLK, GPIO_MODE_INPUT);
 
-	int i = 0;
+	struct Temp_reading *measurement = malloc(sizeof(struct Temp_reading));
+
+	read_temp(measurement);
+	measurement->err = 0;
+	measurement->hum_sig = 0;
+	measurement->hum_dec = 0;
+	measurement->temp_sig = 0;
+	measurement->temp_dec = 0;
 
 	while (1) {
-		listen_for_message_signal(i);
-		i++;
+		read_temp(measurement);
+		if(!measurement->err){
+			ESP_LOGI(
+				"INFO_THERMOMETER_RESULTS",
+				"Humidity: %d, Temp: %d",
+				measurement->hum_sig,
+				measurement->temp_sig
+			);
+		} else {
+			ESP_LOGE("ERR_THERMOMETER_ERROR", "Failed to read temperature");
+		}
+		listen_for_message_signal(convert_measurement_to_int(measurement));
 	}
 }

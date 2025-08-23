@@ -1,2 +1,2 @@
-idf_component_register(SRCS "client_device.c"
-                    INCLUDE_DIRS ".")
+idf_component_register(SRCS "client_device.c" "../include/dht.c" "../include/utils.c"
+                    INCLUDE_DIRS "." "../include")

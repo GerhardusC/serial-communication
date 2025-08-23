@@ -1,5 +1,4 @@
 #include <stdint.h>
-// #include <stdio.h>
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "driver/gpio.h"
@@ -19,12 +18,6 @@ void wait_us_blocking(uint32_t micros_to_wait) {
     while(micros_now_plus_delay > esp_timer_get_time()){}
 }
 
-void pulse_clock() {
-	int old_level = gpio_get_level(CLK);
-	gpio_set_level(CLK, !old_level);
-	wait_us_blocking(20);
-}
-
 int recv_message() {
 	int msg = 0;
 
@@ -39,8 +32,10 @@ int recv_message() {
 		int current_bit = gpio_get_level(MISO);
 		msg |= (current_bit << i);
 		// Pulse clock
-		pulse_clock();
-		pulse_clock();
+		gpio_set_level(CLK, 1);
+		wait_us_blocking(10);
+		gpio_set_level(CLK, 0);
+		wait_us_blocking(10);
 	}
 	gpio_set_level(SELECT, 1);
 	ESP_LOGI("MESSAGE RECEIVED", "%d", msg);
@@ -50,7 +45,7 @@ int recv_message() {
 void app_main(void) {
 	gpio_set_direction(SELECT, GPIO_MODE_OUTPUT);
 	gpio_set_level(SELECT, 1);
-	gpio_set_direction(CLK, GPIO_MODE_INPUT_OUTPUT);
+	gpio_set_direction(CLK, GPIO_MODE_OUTPUT);
 	gpio_set_level(CLK, 1);
 	gpio_set_direction(MISO, GPIO_MODE_INPUT);
 	gpio_set_level(MISO, 1);
