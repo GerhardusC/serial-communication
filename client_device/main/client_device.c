@@ -12,6 +12,8 @@
 #define MISO 22
 #define OTHER 23
 
+#define MESSAGE_LENGTH 32
+
 uint16_t wait_for_clock_state(uint8_t expected_state){
 	// Set as input pin to read from.
 	// clock timeout 10000
@@ -27,7 +29,7 @@ uint16_t wait_for_clock_state(uint8_t expected_state){
 }
 
 void send_message(int msg) {
-	for (int i = 0; i < 32; i++) {
+	for (int i = 0; i < MESSAGE_LENGTH; i++) {
 		// Read clock
 		// Wait for falling edge.
 		wait_for_clock_state(0);
