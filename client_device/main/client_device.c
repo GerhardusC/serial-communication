@@ -4,6 +4,8 @@
 #include "hal/gpio_types.h"
 #include "esp_log.h"
 
+#include "shift_register.h"
+#include "lcd_screen.h"
 #include "utils.h"
 #include "dht.h"
 
@@ -72,10 +74,18 @@ int convert_measurement_to_int(struct Temp_reading *measurement) {
 	return temp_sig_mask | temp_dec_mask | hum_sig_mask | hum_dec_mask;
 }
 
-void app_main(void) {
+void setup() {
 	gpio_set_direction(MISO, GPIO_MODE_OUTPUT);
 	gpio_set_direction(SELECT, GPIO_MODE_INPUT);
 	gpio_set_direction(CLK, GPIO_MODE_INPUT);
+
+	setup_shift_register();
+	vTaskDelay(20);
+	setup_screen();
+}
+
+void app_main(void) {
+	setup();
 
 	struct Temp_reading *measurement = malloc(sizeof(struct Temp_reading));
 
@@ -99,5 +109,17 @@ void app_main(void) {
 			ESP_LOGE("ERR_THERMOMETER_ERROR", "Failed to read temperature");
 		}
 		listen_for_message_signal(convert_measurement_to_int(measurement));
+		// Display on screen right after msg sent, so we know we aren't busy.
+		// TODO: Calculate length of measurement string
+		char *temp_string = malloc(18);
+		sprintf(temp_string, "Temp: %d,%d", measurement->temp_sig, measurement->temp_dec);
+
+		char *hum_string = malloc(18);
+		sprintf(hum_string, "Hum:  %d,%d", measurement->hum_sig, measurement->hum_dec);
+		// Add dynamic length here.
+		write_one_line(TOP, temp_string, 10);
+		write_one_line(BOTTOM, hum_string, 10);
+		free(temp_string);
+		free(hum_string);
 	}
 }

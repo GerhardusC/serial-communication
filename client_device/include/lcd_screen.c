@@ -21,7 +21,7 @@
 #define SHIFT_CURSOR_RIGHT      0b00010100
 #define SHIFT_CURSOR_LEFT       0b00010000
 
-#define STD_MAX_EXECUTION_TIME  100
+#define STD_MAX_EXECUTION_TIME  37
 
 void send_cmd(int cmd) {
     gpio_set_level(ENABLE_RW, 0);
@@ -104,7 +104,7 @@ void setup_screen() {
         READ_WRITE,
         ENABLE_RW,
     };
-    for(int i = 0; i < 4; i++){
+    for(int i = 0; i < 3; i++){
         gpio_reset_pin(pins[i]);
         gpio_set_direction(pins[i], GPIO_MODE_OUTPUT);
         gpio_set_level(pins[i], 0);
