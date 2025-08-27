@@ -21,7 +21,7 @@
 #define SHIFT_CURSOR_RIGHT      0b00010100
 #define SHIFT_CURSOR_LEFT       0b00010000
 
-#define STD_MAX_EXECUTION_TIME  37
+#define STD_MAX_EXECUTION_TIME  39
 
 void send_cmd(int cmd) {
     gpio_set_level(ENABLE_RW, 0);
@@ -35,7 +35,12 @@ void send_cmd(int cmd) {
     wait_us_blocking(10);
     // Disable RW again when no longer busy.
     gpio_set_level(ENABLE_RW, 0);
-    wait_us_blocking(STD_MAX_EXECUTION_TIME);
+    if(cmd == CLEAR || cmd == RETURN_HOME) {
+        vTaskDelay(1);
+
+    } else {
+        wait_us_blocking(STD_MAX_EXECUTION_TIME);
+    }
 }
 
 void write_data(uint8_t data){
@@ -55,7 +60,6 @@ void write_string(char *string) {
     bool string_done = false;
 
     send_cmd(CLEAR);
-    vTaskDelay(2);
 
     // Write top row full of chars.
     for(uint8_t i = 0; i < 16; i++){
@@ -88,7 +92,7 @@ void write_one_line(enum Line16x2 line, char *string, uint8_t len) {
     if(line == BOTTOM){
         for(uint8_t i = 0; i < 40; i++){
             send_cmd(SHIFT_CURSOR_RIGHT);
-            wait_us_blocking(37);
+            wait_us_blocking(STD_MAX_EXECUTION_TIME);
         }
     }
 
