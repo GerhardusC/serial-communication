@@ -21,7 +21,7 @@
 #define SHIFT_CURSOR_RIGHT      0b00010100
 #define SHIFT_CURSOR_LEFT       0b00010000
 
-#define STD_MAX_EXECUTION_TIME  39
+#define STD_MAX_EXECUTION_TIME  100
 
 void send_cmd(int cmd) {
     gpio_set_level(ENABLE_RW, 0);
@@ -30,14 +30,13 @@ void send_cmd(int cmd) {
     gpio_set_level(REGISTER_SELECT, 0);
     gpio_set_level(READ_WRITE, 0);
 
-    wait_us_blocking(10);
+    wait_us_blocking(20);
     gpio_set_level(ENABLE_RW, 1);
-    wait_us_blocking(10);
+    wait_us_blocking(20);
     // Disable RW again when no longer busy.
     gpio_set_level(ENABLE_RW, 0);
     if(cmd == CLEAR || cmd == RETURN_HOME) {
         vTaskDelay(1);
-
     } else {
         wait_us_blocking(STD_MAX_EXECUTION_TIME);
     }
@@ -49,9 +48,9 @@ void write_data(uint8_t data){
     gpio_set_level(REGISTER_SELECT, 1);
     gpio_set_level(READ_WRITE, 0);
 
-    wait_us_blocking(10);
+    wait_us_blocking(20);
     gpio_set_level(ENABLE_RW, 1);
-    wait_us_blocking(10);
+    wait_us_blocking(20);
     gpio_set_level(ENABLE_RW, 0);
     wait_us_blocking(STD_MAX_EXECUTION_TIME);
 }
@@ -80,14 +79,12 @@ void write_string(char *string) {
     }
 
     send_cmd(CURSOR_TOP_LINE);
-    vTaskDelay(1);
 }
 
 
 void write_one_line(enum Line16x2 line, char *string, uint8_t len) {
     uint8_t length = len - 1;
     send_cmd(RETURN_HOME);
-    vTaskDelay(1);
 
     if(line == BOTTOM){
         for(uint8_t i = 0; i < 40; i++){
@@ -99,7 +96,6 @@ void write_one_line(enum Line16x2 line, char *string, uint8_t len) {
     for(uint8_t i = 0; i < 16; i++){
         i > length ? write_data((uint8_t) ' ') : write_data((uint8_t) string[i]);
     }
-    vTaskDelay(1);
 }
 
 void setup_screen() {

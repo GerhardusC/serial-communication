@@ -78,25 +78,44 @@ void setup() {
 	gpio_set_direction(MISO, GPIO_MODE_OUTPUT);
 	gpio_set_direction(SELECT, GPIO_MODE_INPUT);
 	gpio_set_direction(CLK, GPIO_MODE_INPUT);
+	gpio_set_direction(15, GPIO_MODE_OUTPUT);
+
+	gpio_set_level(15, 0);
 
 	setup_shift_register();
 	vTaskDelay(20);
 	setup_screen();
 }
 
-void app_main(void) {
-	setup();
+int len(char *string) {
+	int i = 0;
+	while (string[i] != '\0' && i < 32) { i++; };
+	return i;
+}
 
-	struct Temp_reading *measurement = malloc(sizeof(struct Temp_reading));
+void display_on_screen_task(void *meas) {
+	struct Temp_reading *measurement = (struct Temp_reading*) meas;
+	while(1) {
+		char *temp_string = calloc(18, 1);
+		sprintf(temp_string, "Temp: %d,%d", measurement->temp_sig, measurement->temp_dec);
 
-	read_temp(measurement);
-	measurement->err = 0;
-	measurement->hum_sig = 0;
-	measurement->hum_dec = 0;
-	measurement->temp_sig = 0;
-	measurement->temp_dec = 0;
+		char *hum_string = calloc(18, 1);
+		sprintf(hum_string, "Hum:  %d,%d", measurement->hum_sig, measurement->hum_dec);
 
-	while (1) {
+		// Add dynamic length here.
+		write_one_line(TOP, temp_string, len(temp_string));
+		write_one_line(BOTTOM, hum_string, len(hum_string));
+
+		free(temp_string);
+		free(hum_string);
+		vTaskDelay(200);
+	}
+}
+
+void read_temp_task(void *meas) {
+	struct Temp_reading *measurement = (struct Temp_reading*) meas;
+
+	while(1) {
 		read_temp(measurement);
 		if(!measurement->err){
 			ESP_LOGI(
@@ -108,18 +127,33 @@ void app_main(void) {
 		} else {
 			ESP_LOGE("ERR_THERMOMETER_ERROR", "Failed to read temperature");
 		}
-		listen_for_message_signal(convert_measurement_to_int(measurement));
-		// Display on screen right after msg sent, so we know we aren't busy.
-		// TODO: Calculate length of measurement string
-		char *temp_string = malloc(18);
-		sprintf(temp_string, "Temp: %d,%d", measurement->temp_sig, measurement->temp_dec);
+		vTaskDelay(200);
+	}
+}
 
-		char *hum_string = malloc(18);
-		sprintf(hum_string, "Hum:  %d,%d", measurement->hum_sig, measurement->hum_dec);
-		// Add dynamic length here.
-		write_one_line(TOP, temp_string, 10);
-		write_one_line(BOTTOM, hum_string, 10);
-		free(temp_string);
-		free(hum_string);
+void listen_for_message_signal_task(void *meas) {
+	struct Temp_reading *measurement = (struct Temp_reading*) meas;
+	while (1) {
+		listen_for_message_signal(convert_measurement_to_int(measurement));
+	}
+}
+
+void app_main(void) {
+	setup();
+
+	struct Temp_reading measurement = {
+		.temp_sig = 0,
+		.temp_dec = 0,
+		.hum_sig = 0,
+		.hum_dec = 0,
+		.err = 0,
+	};
+
+	xTaskCreate(display_on_screen_task, "Display On LCD", 4000, &measurement, 1, NULL);
+	xTaskCreate(read_temp_task, "Read Temp", 4000, &measurement, 2, NULL);
+	xTaskCreate(listen_for_message_signal_task, "Listen for message signal", 4000, &measurement, 3, NULL);
+
+	while (1) {
+		vTaskDelay(1000);
 	}
 }
