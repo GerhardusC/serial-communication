@@ -96,18 +96,15 @@ int len(char *string) {
 void display_on_screen_task(void *meas) {
 	struct Temp_reading *measurement = (struct Temp_reading*) meas;
 	while(1) {
-		char *temp_string = calloc(18, 1);
+		char temp_string[18] = {'\0'};
 		sprintf(temp_string, "Temp: %d,%d", measurement->temp_sig, measurement->temp_dec);
 
-		char *hum_string = calloc(18, 1);
+		char hum_string[18] = {'\0'};
 		sprintf(hum_string, "Hum:  %d,%d", measurement->hum_sig, measurement->hum_dec);
 
-		// Add dynamic length here.
 		write_one_line(TOP, temp_string, len(temp_string));
 		write_one_line(BOTTOM, hum_string, len(hum_string));
 
-		free(temp_string);
-		free(hum_string);
 		vTaskDelay(200);
 	}
 }
