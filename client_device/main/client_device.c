@@ -15,6 +15,7 @@
 #define OTHER 23
 
 #define MESSAGE_LENGTH 32
+#define CHECKSUM_LENGTH 10
 
 uint16_t wait_for_clock_state(uint8_t expected_state){
 	// Set as input pin to read from.
@@ -30,7 +31,7 @@ uint16_t wait_for_clock_state(uint8_t expected_state){
 	return 0;
 }
 
-void send_message(int msg) {
+void send_message(int msg, int checksum) {
 	for (int i = 0; i < MESSAGE_LENGTH; i++) {
 		// Read clock
 		// Wait for falling edge.
@@ -42,14 +43,25 @@ void send_message(int msg) {
 		// Wait for clock to switch and bit to be read.
 		wait_for_clock_state(1);
 	}
+	for (int i = 0; i < CHECKSUM_LENGTH; i++) {
+		// Read clock
+		// Wait for falling edge.
+		wait_for_clock_state(0);
+		int val = (checksum & (1 << i)) > 0 ? 1 : 0;
+		// Send bit.
+		gpio_set_level(MISO, val);
+
+		// Wait for clock to switch and bit to be read.
+		wait_for_clock_state(1);
+	}
 	ESP_LOGI("MSG_SENT", "%d", msg);
 }
 
-void listen_for_message_signal(int msg) {
+void listen_for_message_signal(int msg, int checksum) {
 	while (gpio_get_level(SELECT) == 1) {
 		wait_us_blocking(2);
 	}
-	send_message(msg);
+	send_message(msg, checksum);
 	vTaskDelay(1);
 	while(gpio_get_level(SELECT) == 0) {
 		vTaskDelay(1);
@@ -128,10 +140,17 @@ void read_temp_task(void *meas) {
 	}
 }
 
+int compute_checksum(struct Temp_reading *meas) {
+	return meas->temp_sig + meas->temp_dec + meas->hum_sig + meas->hum_dec;
+}
+
 void listen_for_message_signal_task(void *meas) {
 	struct Temp_reading *measurement = (struct Temp_reading*) meas;
 	while (1) {
-		listen_for_message_signal(convert_measurement_to_int(measurement));
+		listen_for_message_signal(
+			convert_measurement_to_int(measurement),
+			compute_checksum(measurement)
+		);
 	}
 }
 
